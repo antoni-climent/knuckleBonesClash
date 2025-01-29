@@ -11,10 +11,11 @@ def calculate_column_score(column):
     """Calculates the score of a column by multiplying the equal dice numbers and adding the others"""
     dice_counts = [0,0,0,0,0,0]
     for dice in column:
-        dice_counts[dice-1] += 1
+        if dice != 0:
+            dice_counts[dice-1] += 1
     # Multiply indexes by the dice counts
-    print("Dice counts:", dice_counts)
-    return sum(pow(dice,count) if count != 0 else 0 for dice, count in enumerate(dice_counts, 1))
+    print("Dice column: ", column, " with count: ", dice_counts)
+    return sum(dice*count*count if count != 0 else 0 for dice, count in enumerate(dice_counts, 1))
 
 def display_board(board, color):
     """Displays the game board."""

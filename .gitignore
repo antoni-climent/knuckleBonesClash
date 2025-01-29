@@ -1,0 +1,6 @@
+models/
+*.pth
+wandb/
+__pycache__/
+*.json
+
