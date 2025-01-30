@@ -12,8 +12,10 @@ import wandb
 # Parameters
 run = wandb.init(project='knuckle')
 learning_rate = 0.00001
-num_epochs = 500
-num_episodes = 2048
+num_epochs = 1000
+num_episodes = 1024
+
+
 # Save variables to wandb
 run.config.update({"num_episodes": num_episodes, "num_epochs": num_epochs, "learning_rate": learning_rate})
 
@@ -30,28 +32,10 @@ class PolicyNetwork(nn.Module):
         x = F.relu(self.fc2(x))
         x = F.softmax(self.fc3(x), dim=-1)
         return x
-    
 
-def compute_disc_rew(rewards):
-    """add_rew = 0
-    for i in reversed(range(len(rewards))):
-        if rewards[i] == 0:
-            add_rew = 0
-        else:
-            add_rew = add_rew * gamma + rewards[i]
-            rewards[i] = add_rew
-    """
-
-    # Return ormalized rewards
-    return (rewards - np.mean(rewards)) / np.std(rewards)
-        
 def random_move(env, state):
-    # Generate random action untill a possible one is found
-    while True:
-        # Sample action
-        action = random.randint(0,2)
-        if env.is_valid_move(state[1], action):
-            return action
+    valid_moves = [action for action in range(3) if env.is_valid_move(state[1], action)]
+    return random.choice(valid_moves)
 
 def update_wins_losses(num_wins, num_losses, env):
     if env.calculate_score(env.board1) > env.calculate_score(env.board2):
@@ -60,16 +44,24 @@ def update_wins_losses(num_wins, num_losses, env):
         num_losses += 1
     return num_wins, num_losses
 
-def main():
+def main(model_name=None):
 
     env = knuckle()
     policy_net = PolicyNetwork()
+
+    # Load model if it exists to continue training
+    if model_name:
+        policy_net.load_state_dict(torch.load(model_name))
+        print(f'Model {model_name} loaded')
+        
     wandb.watch(policy_net)
     optimizer = torch.optim.Adam(policy_net.parameters(), lr=learning_rate)
     
     num_wins = 0
     num_losses = 0
     total_loss = 0
+    rewards1 = np.array([])
+    rewards2 = np.array([])
 
     for epoch in tqdm(range(num_epochs)):
         for ep in range(num_episodes):
@@ -83,7 +75,6 @@ def main():
                 state =(state - 3.5) / 1.71 # Normalize (calculated by hand)
                 state = torch.tensor(state, dtype=torch.float, requires_grad=True).flatten()
 
-
                 # Sample action
                 probs = policy_net(state)
                 m = Categorical(probs)
@@ -91,16 +82,21 @@ def main():
 
                 # Run step and save action and reward for the current state
                 state, reward, done = env.step(action, 1)
+                rewards1 = np.append(rewards1, reward)
 
                 # Normalize reward (calculated by hand)
-                reward = reward / 36 # 36 is the maximum possible reward 
+                reward = (reward - 2.2)/4.0 # 36 is the maximum possible reward 
 
                 # Compute -logprob and gradients
                 loss = -m.log_prob(action) * reward
-                total_loss += loss
-
-                # Time to do backward
                 loss.backward()
+
+                # Update the weights
+                optimizer.step()
+                optimizer.zero_grad()
+
+                total_loss += loss.item()
+                
                 
                 if done: # Track wins and losses
                     num_wins, num_losses = update_wins_losses(num_wins, num_losses, env)
@@ -111,6 +107,7 @@ def main():
                 action = random_move(env, state)
                 # Run step and save action and reward for the current state
                 state, reward, done = env.step(action, 2)
+                rewards2 = np.append(rewards2, reward)
 
                 if done: # Track wins and losses
                     num_wins, num_losses = update_wins_losses(num_wins, num_losses, env)
@@ -118,31 +115,27 @@ def main():
             
             
 
-            # Update the weights
-            optimizer.step()
-            optimizer.zero_grad()
-
-        # Normalize the gradients to prevent exploding gradients
-        # for param in policy_net.parameters():
-        #     if param.grad is not None:
-        #         param.grad /= num_episodes
-
         # Log the loss    
         wandb.log({"loss": total_loss/num_episodes})
         total_loss = 0
+
+        wandb.log({"reward1_mean": np.mean(rewards1), "reward2_mean": np.mean(rewards2)})
+        wandb.log({"reward1_std": np.std(rewards1), "reward2_std": np.std(rewards2)})
+        rewards1 = np.array([])
+        rewards2 = np.array([])
 
         # Log the win rate
         run.log({"num_wins": num_wins, "num_losses": num_losses, "win_rate": num_wins / (num_wins + num_losses + 0.001)})
         num_wins, num_losses = 0, 0
 
-        if epoch % 20 == 0:
+        if epoch % 50 == 0:
             # validate(policy_net)
-            torch.save(policy_net.state_dict(), f'./models/model_state_dict_{epoch}.pth')
+            torch.save(policy_net.state_dict(), f'./models/model_state_dict_{epoch + 2000}.pth')
 
     torch.save(policy_net.state_dict(), './models/model_state_dict_final.pth')
 
 
 if __name__ == "__main__":
-    main()
+    main('./models/model2/model_state_dict_2000.pth')
 
 #TODO: Allow the player2 to contribute to the training

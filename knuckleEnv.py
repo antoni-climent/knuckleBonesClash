@@ -85,7 +85,6 @@ class knuckle:
     
     def step(self, action, board_n):
         # Calculate board scores before playing
-        #TODO: calculate new reward function based on the diff between the last score and current
         score1 = self.calculate_score(self.board1)
         score2 = self.calculate_score(self.board2)
 
@@ -93,7 +92,7 @@ class knuckle:
         if board_n == 1:
             # If it breaks rules, return
             if not self.place_choice(self.board1, action):
-                return [self.board1, self.board2], 0, True
+                return [self.board1, self.board2], -1, True
             
             # If roll match with other player column number, clear it
             if self.last_roll in [row[action] for row in self.board2]:
@@ -102,18 +101,20 @@ class knuckle:
             # Check if the game has finished
             game_finished = all(self.board1[2][i] != 0 for i in range(3)) or all(self.board2[2][i] != 0 for i in range(3))
 
-            # Roll dice for next round
-            self.roll_dice()
+            
             # print(f"Score1: {score1}, calculate_new_score: {self.calculate_score(self.board1)}")
             # Reward is the value increment of your board plus the subtraction value of the enemy
-            step_reward = (self.calculate_score(self.board1) - score1) + (score2 - self.calculate_score(self.board2))
+            step_reward = (self.calculate_score(self.board1) - score1) + (score2 - self.calculate_score(self.board2)) - self.last_roll + 0.01
+            
+            # Roll dice for next round
+            self.roll_dice()
             return [self.board1, self.board2], step_reward, game_finished # Next state, reward, done
         
         # Update board 2
         elif board_n == 2:
             # If it breaks rules, return
             if not self.place_choice(self.board2, action):
-                return [self.board1, self.board2], 0, True
+                return [self.board1, self.board2], -1, True
             
             # If roll match with other player column number, clear it
             if self.last_roll in [row[action] for row in self.board1]: # Check if column 
@@ -122,9 +123,10 @@ class knuckle:
              # Check if the game has finished
             game_finished = all(self.board1[2][i] != 0 for i in range(3)) or all(self.board2[2][i] != 0 for i in range(3))
 
+            
+            step_reward = (self.calculate_score(self.board2) - score2) + (score1 - self.calculate_score(self.board1)) - self.last_roll+ 0.01
             # Roll dice for next round
             self.roll_dice()
-            step_reward = (self.calculate_score(self.board2) - score2) + (score1 - self.calculate_score(self.board1))
             return [self.board1, self.board2], step_reward, game_finished # Next state, reward, done
 
 if __name__ == "__main__":

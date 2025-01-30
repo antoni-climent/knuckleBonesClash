@@ -98,7 +98,7 @@ def play_against_ai(path_name):
 
 if __name__ == "__main__":
     # Load model
-    model_name = "./models/model_state_dict_80.pth"
+    model_name = "./models/model_state_dict_2050.pth"
     # model = PolicyNetwork()
     # model.load_state_dict(torch.load(model_name))
     # validate(model)

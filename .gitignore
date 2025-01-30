@@ -1,5 +1,5 @@
-models/
-*.pth
+model1
+model2
 wandb/
 __pycache__/
 *.json
