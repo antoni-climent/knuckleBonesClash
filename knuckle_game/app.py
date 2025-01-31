@@ -1,7 +1,31 @@
 from flask import Flask, render_template, jsonify, request
 import random
+import sys
+sys.path.append("../training")
+import torch.nn as nn
+import torch.nn.functional as F
+import torch
+import numpy as np
+
+class PolicyNetwork(nn.Module):
+    def __init__(self):
+        super(PolicyNetwork, self).__init__()
+
+        self.fc1 = nn.Linear(19, 32)
+        self.fc2 = nn.Linear(32, 16)
+        self.fc3 = nn.Linear(16,3)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.softmax(self.fc3(x), dim=-1)
+        return x
 
 app = Flask(__name__)
+
+path_name = "../models/model_state_dict_2000.pth"
+model = PolicyNetwork()
+model.load_state_dict(torch.load(path_name))
 
 class Knuckle:
     def __init__(self):
@@ -54,8 +78,14 @@ def move():
     data = request.json
     column = data['column']
     if game.step(column, 1):
-        ai_move = random.randint(0, 2)
+        state = np.append(np.array(game.board2 + game.board1).flatten(), game.last_roll)
+        state = torch.tensor(state, dtype=torch.float32, requires_grad=False)
+        state = (state - 3.5) / 1.71
+
+        probs = model(state)
+        ai_move = int(np.argmax(probs.detach().numpy()))
         game.step(ai_move, 2)
+        print("AI move:", ai_move)
         return jsonify({'success': True, 'last_roll': game.last_roll, 'ai_move': ai_move})
     return jsonify({'success': False})
 

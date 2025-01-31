@@ -7,17 +7,10 @@ from knuckleEnv import knuckle
 from tqdm import tqdm
 import random
 import wandb
-# from validation import validate
 
-# Parameters
-run = wandb.init(project='knuckle')
 learning_rate = 0.00001
 num_epochs = 1000
 num_episodes = 1024
-
-
-# Save variables to wandb
-run.config.update({"num_episodes": num_episodes, "num_epochs": num_epochs, "learning_rate": learning_rate})
 
 class PolicyNetwork(nn.Module):
     def __init__(self):
@@ -45,6 +38,10 @@ def update_wins_losses(num_wins, num_losses, env):
     return num_wins, num_losses
 
 def main(model_name=None):
+    # Initialize wandb
+    run = wandb.init(project='knuckle')
+    # Save variables to wandb
+    run.config.update({"num_episodes": num_episodes, "num_epochs": num_epochs, "learning_rate": learning_rate})
 
     env = knuckle()
     policy_net = PolicyNetwork()
@@ -135,7 +132,5 @@ def main(model_name=None):
     torch.save(policy_net.state_dict(), './models/model_state_dict_final.pth')
 
 
-if __name__ == "__main__":
-    main('./models/model2/model_state_dict_2000.pth')
-
-#TODO: Allow the player2 to contribute to the training
+# if __name__ == "__main__":
+#     main('./models/model2/model_state_dict_2000.pth')

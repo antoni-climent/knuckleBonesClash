@@ -8,7 +8,7 @@ from colorama import init
 from termcolor import colored
 import numpy as np
 
-init()
+init()  
 
 num_episodes = 1000  
 

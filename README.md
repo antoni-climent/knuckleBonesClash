@@ -12,7 +12,7 @@ Welcome to **KnuckleBonesClash**! This project is an implementation of the game 
 1. **Clone the Repository** 📥
    ```bash
    git clone https://github.com/antoni-climent/knuckleBonesClash
-   cd knuckleBonesClash
+   cd knuckleBonesClash/knuckle_game
    ```
 2. **Install Dependencies** 📦
    ```bash
