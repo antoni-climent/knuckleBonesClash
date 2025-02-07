@@ -37,6 +37,19 @@ class Knuckle:
     def roll_dice(self):
         self.last_roll = random.randint(1, 6)
 
+    def calculate_column_score(self, column):
+        """Calculates the score of a column by multiplying the equal dice numbers and adding the others"""
+        dice_counts = [0,0,0,0,0,0]
+        for dice in column:
+            if dice != 0:
+                dice_counts[dice-1] += 1
+        # Multiply indexes by the dice counts
+        # print("Dice column: ", column, " with count: ", dice_counts)
+        return sum(dice*count*count if count != 0 else 0 for dice, count in enumerate(dice_counts, 1))
+    
+    def calculate_score(self, board):
+        return sum(self.calculate_column_score(column) for column in list(zip(*board)))
+    
     def place_choice(self, board, column_index):
         if board[2][column_index] != 0:
             return False
@@ -66,7 +79,13 @@ class Knuckle:
                 self.clear_column(self.board1, action)
         self.roll_dice()
         return True
-
+    
+    def is_valid_move(self, board, column_index):
+        if board[2][column_index] != 0:
+            return False # If it is an invalid choice
+        else:
+            return True
+            
 game = Knuckle()
 
 @app.route('/')
@@ -78,15 +97,29 @@ def move():
     data = request.json
     column = data['column']
     if game.step(column, 1):
+        game_finished = all(game.board1[2][i] != 0 for i in range(3)) or all(game.board2[2][i] != 0 for i in range(3))
+        if game_finished:
+            return jsonify({'success': True, 'finished': True, 'result_player': game.calculate_score(game.board1), 'result_opponent': game.calculate_score(game.board2)})
         state = np.append(np.array(game.board2 + game.board1).flatten(), game.last_roll)
         state = torch.tensor(state, dtype=torch.float32, requires_grad=False)
         state = (state - 3.5) / 1.71
 
         probs = model(state)
         ai_move = int(np.argmax(probs.detach().numpy()))
-        game.step(ai_move, 2)
+        done = game.step(ai_move, 2)
+
+        if not done: # If the AI move is invalid, choose a random move
+            print("AI move failed, using random move")
+            ai_move = random.choice([i for i in range(3) if game.is_valid_move(game.board2, i)])
+            game.step(ai_move, 2)
+
         print("AI move:", ai_move)
-        return jsonify({'success': True, 'last_roll': game.last_roll, 'ai_move': ai_move})
+        
+        game_finished = all(game.board1[2][i] != 0 for i in range(3)) or all(game.board2[2][i] != 0 for i in range(3))
+        if game_finished:
+            return jsonify({'success': True, 'finished': True, 'result_player': game.calculate_score(game.board1), 'result_opponent': game.calculate_score(game.board2)})
+        else:
+            return jsonify({'success': True, 'finished': False})
     return jsonify({'success': False})
 
 @app.route('/reset', methods=['POST'])
